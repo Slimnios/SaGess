@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "gragendiff"
+version = "0.1.0"
+description = ""
+authors = ["Slimnios <60469485+Slimnios@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pandas = "^1.5.3"
+pyyaml = "^6.0"
+imageio = "^2.25.1"
+numpy = "^1.24.2"
+matplotlib = "3.6.1"
+tqdm = "^4.64.1"
+wandb = "^0.13.10"
+hydra-core = "^1.3.1"
+pytorch-lightning = "1.7.2"
+torchmetrics = "^0.11.1"
+torch-geometric = "^2.2.0"
+torch = {url = "https://download.pytorch.org/whl/cu113/torch-1.11.0%2Bcu113-cp39-cp39-win_amd64.whl"}
+
+ipdb = "^0.13.11"
+pdbpp = "^0.10.3"
+networkx = "2.8.7"
+overrides = "^7.3.1"
+pygsp = "^0.5.1"
+pyemd = "^0.5.1"
+torchvision = "0.12"
+torch-cluster = {url = "https://data.pyg.org/whl/torch-1.11.0%2Bcpu/torch_cluster-1.6.0-cp39-cp39-win_amd64.whl"}
+torch-scatter = {url = "https://data.pyg.org/whl/torch-1.11.0%2Bcpu/torch_scatter-2.0.9-cp39-cp39-win_amd64.whl"}
+torch-spline-conv = {url = "https://data.pyg.org/whl/torch-1.11.0%2Bcpu/torch_spline_conv-1.2.1-cp39-cp39-win_amd64.whl"}
+torch-sparse = {url = "https://data.pyg.org/whl/torch-1.11.0%2Bcpu/torch_sparse-0.6.13-cp39-cp39-win_amd64.whl"}
+rdkit = "^2022.9.4"
+powerlaw = "^1.5"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

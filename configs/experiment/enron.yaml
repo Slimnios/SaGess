@@ -1,0 +1,31 @@
+# @package _global_
+general:
+    name : 'enron'
+    gpus : 1
+    wandb: 'offline'
+    resume: null            # If resume, path to ckpt file from outputs directory in main directory
+    test_only: null
+    check_val_every_n_epochs: 100
+    sample_every_val: 40
+    samples_to_generate: 40
+    samples_to_save: 1
+    chains_to_save: 0
+    final_model_samples_to_generate: 20
+    final_model_samples_to_save: 30
+    final_model_chains_to_save: 20
+train:
+    n_epochs: 100
+    batch_size: 32
+    save_model: False #True
+model:
+    diffusion_steps: 500
+    n_layers: 5
+    lambda_train: [5, 0]
+    extra_features: 'all'
+
+    # Do not set hidden_mlp_E, dim_ffE too high, computing large tensors on the edges is costly
+    # At the moment (03/08), y contains quite little information
+    hidden_mlp_dims: { 'X': 64, 'E': 32, 'y': 64 }
+
+    # The dimensions should satisfy dx % n_head == 0
+    hidden_dims: { 'dx': 128, 'de': 64, 'dy': 64, 'n_head': 8, 'dim_ffX': 128, 'dim_ffE': 64, 'dim_ffy': 128 }
