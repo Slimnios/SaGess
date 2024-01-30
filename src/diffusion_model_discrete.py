@@ -195,14 +195,14 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
 
             ident = 0
             while samples_left_to_generate > 0:
-                bs = self.cfg.train.batch_size
+                bs = self.cfg.dataset.batch_size
                 to_generate = min(samples_left_to_generate, bs)
                 to_save = min(samples_left_to_save, bs)
-                print('to generate'+str(to_generate))
+                # print('to generate'+str(to_generate))
                 chains_save = min(chains_left_to_save, bs)
-                print('to save' + str(to_save))
-                print('chains_save ' + str(chains_save))
-                samples.extend(self.sample_batch(batch_id=ident, batch_size=self.cfg.train.batch_size, num_nodes=None,
+                # print('to save' + str(to_save))
+                # print('chains_save ' + str(chains_save))
+                samples.extend(self.sample_batch(batch_id=ident, batch_size=self.cfg.dataset.batch_size, num_nodes=None,
                                                  save_final=to_save,
                                                  keep_chain=chains_save,
                                                  number_chain_steps=self.number_chain_steps))
@@ -265,7 +265,7 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
         while samples_left_to_generate > 0:
             print(f'Samples left to generate: {samples_left_to_generate}/'
                   f'{self.cfg.general.final_model_samples_to_generate}', end='', flush=True)
-            bs = self.cfg.train.batch_size
+            bs = self.cfg.dataset.batch_size
             to_generate = min(samples_left_to_generate, bs)
             to_save = min(samples_left_to_save, bs)
             chains_save = min(chains_left_to_save, bs)

@@ -3,7 +3,7 @@ FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-ENV WORKDIR=/root/workspace/techniques/sagess
+ENV WORKDIR=/root/workspace
 ENV NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
 ENV CONDA_ENV=sagess
 

@@ -187,19 +187,12 @@ class LargeGraphDataset(Dataset):
                                        dataset_samples_initialids[i][1].apply_(lambda x: dict_maps[i][x])) for i in
                                       range(n_samples)]
 
-            Train_data = [Data(x=F.one_hot(torch.flatten(dataset_samples_wnmaps[i][0]),num_classes = n_nodes).float().to_sparse(), edge_index=dataset_samples_wnmaps[i][1],
+            Train_data = [Data(x=F.one_hot(torch.flatten(dataset_samples_wnmaps[i][0]),num_classes = n_nodes).float().to_sparse(), 
+                               edge_index=dataset_samples_wnmaps[i][1],
                                edge_attr = torch.tensor([[0 for k in range(dataset_samples_wnmaps[i][1].size()[1])],[1 for n in range(dataset_samples_wnmaps[i][1].size()[1])]], dtype = torch.long).transpose(0,1), #np.ones(dataset_samples_wnmaps[i][1].size()[1])),
                                n_nodes=subgraph_size*torch.ones(1, dtype=torch.long), y = y)  for i in range(n_samples)]
 
             self.data = Train_data
-
-
-        #""" This class can be used to load the comm20, sbm and planar datasets. """
-        # base_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, 'data')
-        # filename = os.path.join(base_path, data_file)
-        # self.adjs, self.eigvals, self.eigvecs, self.n_nodes, self.max_eigval, self.min_eigval, self.same_sample, self.n_max = torch.load(
-        #     filename)
-        # print(f'Dataset {filename} loaded from file')
 
     def __len__(self):
         return self.sample_size
