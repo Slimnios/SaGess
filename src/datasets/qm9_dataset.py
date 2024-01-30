@@ -168,7 +168,6 @@ class QM9Dataset(InMemoryDataset):
             edge_attr = edge_attr[perm]
 
             x = F.one_hot(torch.tensor(type_idx), num_classes=len(types)).float()
-            import pdb;pdb.set_trace()
             y = torch.zeros((1, 0), dtype=torch.float)
 
             if self.remove_h:

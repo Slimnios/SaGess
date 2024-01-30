@@ -202,7 +202,6 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
                 chains_save = min(chains_left_to_save, bs)
                 print('to save' + str(to_save))
                 print('chains_save ' + str(chains_save))
-                #import pdb;pdb.set_trace()
                 samples.extend(self.sample_batch(batch_id=ident, batch_size=self.cfg.train.batch_size, num_nodes=None,
                                                  save_final=to_save,
                                                  keep_chain=chains_save,
@@ -414,12 +413,10 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
         assert (abs(Qtb.E.sum(dim=2) - 1.) < 1e-4).all()
 
         # Compute transition probabilities
-        #import pdb;pdb.set_trace() Had to add the .int() here because of error otherwise, don't know why though
         tempX = Qtb.X
         tempE = Qtb.E
         probX = X.float() @ tempX  # (bs, n, dx_out)
         probE = E.float() @ tempE.unsqueeze(1)  # (bs, n, n, de_out)
-        #import pdb; pdb.set_trace()
         sampled_t = diffusion_utils.sample_discrete_features(probX=probX, probE=probE, node_mask=node_mask)
 
         X_t = F.one_hot(sampled_t.X, num_classes=self.Xdim_output)

@@ -51,8 +51,6 @@ edge_list = nx.from_numpy_array(A)
 
 edge_list_samples = list(edge_list.edges())
 
-import pdb;pdb.set_trace()
-
 import pickle
 with open('DSBM_edge_list_sbm.pkl', 'wb') as f:
     pickle.dump(edge_list_samples, f)

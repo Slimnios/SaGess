@@ -64,8 +64,11 @@ def get_resume_adaptive(cfg, model_kwargs):
 
 def setup_wandb(cfg):
     config_dict = omegaconf.OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
-    kwargs = {'name': cfg.general.name, 'project': f'graph_ddm_{cfg.dataset.name}', 'config': config_dict,
-              'settings': wandb.Settings(_disable_stats=True), 'reinit': True, 'mode': cfg.general.wandb}
+    kwargs = {'name': 'sagess', 'project': f'sagess_{cfg.dataset.name}', 'config': config_dict,
+              'settings': wandb.Settings(_disable_stats=True), 'reinit': True, 
+              'mode': cfg.general.wandb,
+            #   , 'entity': ''
+              }
     wandb.init(**kwargs)
     wandb.save('*.txt')
     return cfg
@@ -74,7 +77,6 @@ def setup_wandb(cfg):
 @hydra.main(version_base='1.1', config_path='../configs', config_name='config')
 def main(cfg: DictConfig):
     dataset_config = cfg["dataset"]
-    #data = LargeGraphDataset('enron')
     datamodule = LargeGraphModule(cfg)
     sampling_metrics = LargeGraphSamplingMetrics(datamodule.dataloaders)
 
@@ -126,12 +128,12 @@ def main(cfg: DictConfig):
     trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.general.resume)
     device = torch.device('cuda')
     model.to(device)
-    dir = False
-    #import pdb; pdb.set_trace()
+    dir = cfg.dataset.directed if hasattr(cfg.dataset, 'directed') else False
+
     for i in range(10):
         torch.cuda.empty_cache()
         samples_left_to_generate = cfg.general.final_model_samples_to_generate
-        samples_left_to_save = 1#cfg.general.final_model_samples_to_save
+        samples_left_to_save = 1    #cfg.general.final_model_samples_to_save
         number_chain_steps = cfg.general.number_chain_steps
         chains_left_to_save = cfg.general.final_model_chains_to_save
         samples = []
@@ -143,8 +145,8 @@ def main(cfg: DictConfig):
         while samples_left_to_generate > 0:# or n_edges < 5:
             print(f'Samples left to generate: {samples_left_to_generate}/ '
                   f'{cfg.general.final_model_samples_to_generate}', end='', flush=True)
-            bs = cfg.train.batch_size
-            to_generate = min(samples_left_to_generate,cfg.train.batch_size)
+            bs = cfg.dataset.batch_size
+            to_generate = min(samples_left_to_generate,cfg.dataset.batch_size)
             to_save = min(samples_left_to_save, bs)
             #print('to_save: ' +str(to_save))
             #print('to_generate: '+str(to_generate))
@@ -152,7 +154,6 @@ def main(cfg: DictConfig):
             temp_samples = model.sample_batch(id, to_generate, num_nodes=None, save_final=to_save, keep_chain=chains_save, number_chain_steps=number_chain_steps)
             #print('chains_save: '+str(chains_save))
             #samples.extend(model.sample_batch(id, to_generate, num_nodes=None, save_final=to_save, keep_chain=chains_save, number_chain_steps=number_chain_steps))
-            #import pdb; pdb.set_trace()
             for sample in temp_samples:
                 temp_indexes = torch.nonzero(torch.tensor(sample[1]))
                 edge_list_samples += [((int(sample[0][i].cpu())), int(sample[0][j].cpu())) for i, j in temp_indexes]
@@ -162,11 +163,11 @@ def main(cfg: DictConfig):
                     g = nx.from_edgelist(edge_list_samples, create_using=nx.Graph())
                 n_edges = len(list(g.edges()))
                 number_of_edges.append(n_edges)
-                if n_edges >16706:#73312:#12761:#27755:#16706:#int(i*16706/10):#34812:#77943:#81492:#10556:
+                if n_edges > cfg.dataset.edge_count: #73312:#12761:#27755:#16706:#int(i*16706/10):#34812:#77943:#81492:#10556:
                     break
 
             print('number of edges sampled: '+str(n_edges))
-            if n_edges>16706:#73312:#12761:#27755:#16706:#int(i*16706/10):#34812:#77943:#81492:#10556:
+            if n_edges > cfg.dataset.edge_count: #73312:#12761:#27755:#16706:#int(i*16706/10):#34812:#77943:#81492:#10556:
                 break
             id += to_generate
             samples_left_to_save -= to_save
@@ -178,17 +179,15 @@ def main(cfg: DictConfig):
         #     edge_list_samples += [((int(sample[0][i].cpu())), int(sample[0][j].cpu())) for i, j in temp_indexes]
 
         import pickle
-        with open(str(i)+'_edge_list.pkl', 'wb') as f:
+        with open('./' + str(i) + f'_{cfg.dataset.name}_edge_list.pkl', 'wb') as f:
             pickle.dump(edge_list_samples, f)
-        with open(str(i)+'_edge_list_numbers_sampled.pkl', 'wb') as f:
+        with open('./' + str(i) + f'_{cfg.dataset.name}_edge_list_numbers_sampled.pkl', 'wb') as f:
             pickle.dump(number_of_edges, f)
-    import pdb;
-    pdb.set_trace()
-
+    
+    
 if __name__ == '__main__':
     main()
 #
-# import pdb;pdb.set_trace()
 #
 # base_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, 'data')
 # graphs = EmailEUCore(base_path)
@@ -215,7 +214,6 @@ if __name__ == '__main__':
 #
 #
 #
-# import pdb; pdb.set_trace()
 #
 #
 # edge_list = []

@@ -171,7 +171,6 @@ class GuacamolDataset(InMemoryDataset):
             x = F.one_hot(torch.tensor(type_idx), num_classes=len(types)).float()
 
             y = torch.zeros(size=(1, 0), dtype=torch.float)
-            import pdb;pdb.set_trace()
             data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y, idx=i)
 
             if not preprocess:
