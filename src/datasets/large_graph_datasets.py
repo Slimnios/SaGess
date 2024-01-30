@@ -34,8 +34,8 @@ def random_walk(G, start_node, length):
     return rw
 
 class LargeGraphDataset(Dataset):
-    def __init__(self, data_file, data_name="eucore",sampling_method='ego'):
-        if data_name == "eucore":
+    def __init__(self, data_file, data_name="custom",sampling_method='ego'):
+        if data_name == "custom":
             self.data_file = data_file
             base_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, 'data')
             sbm_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data')
@@ -60,19 +60,6 @@ class LargeGraphDataset(Dataset):
                             self.data = pickle.load(f)
                 graphs = SBMGraph()
             
-            #graphs = Amazon(base_path,'Photo')
-            # graphs = AttributedGraphDataset(base_path,"Wiki")
-            
-            # graphs.data.num_nodes = 2000
-
-            # graphs = StochasticBlockModelDataset(base_path, block_sizes=[200, 200, 300, 300, 500, 500],
-            #                                      edge_probs=[[0.1, 0.01, 0.01, 0.01, 0.01, 0.01],
-            #                                                  [0.01, 0.2, 0.01, 0.01, 0.01, 0.01],
-            #                                                  [0.01, 0.01, 0.05, 0.01, 0.01, 0.01],
-            #                                                  [0.01, 0.01, 0.01, 0.1, 0.01, 0.01],
-            #                                                  [0.01, 0.01, 0.01, 0.01, 0.04, 0.01],
-            #                                                  [0.01, 0.01, 0.01, 0.01, 0.01, 0.04]], is_undirected=False)
-
             # print(graphs.data.has_isolated_nodes())
             
             if directed_graph == True:
