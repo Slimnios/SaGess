@@ -1,0 +1,3 @@
+name: 'sbm'
+edge_count: 73312
+batch_size: 32
