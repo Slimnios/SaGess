@@ -148,6 +148,6 @@ dgd/analysis/orca/orca
 results/*
 ggg_data/
 ggg_utils/
-saved_models
+# saved_models
 # src/analysis/orca/orca
 src/analysis/orca/tmp*
