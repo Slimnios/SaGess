@@ -1,0 +1,30 @@
+name: sagess  # Name of the Conda environment
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.10
+  - graph-tool
+  - pip
+  - pip:
+      - pandas==1.5.3
+      - pyyaml==6.0
+      - imageio==2.25.1
+      - numpy==1.24.2
+      - matplotlib==3.6.1
+      - tqdm==4.64.1
+      - wandb==0.13.10
+      - hydra-core==1.3.1
+      - pytorch-lightning==1.7.2
+      - torchmetrics==0.11.4
+      - scipy==1.10.1
+      - ipdb==0.13.11
+      - pdbpp==0.10.3
+      - networkx==2.8.7
+      - overrides==7.3.1
+      - pygsp==0.5.1
+      - pyemd==0.5.1
+      - rdkit==2022.9.4
+      - kiwisolver==1.4.4
+      - powerlaw==1.5
