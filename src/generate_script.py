@@ -8,45 +8,49 @@ from src.metrics.abstract_metrics import TrainAbstractMetricsDiscrete
 from src.diffusion_model_discrete import DiscreteDenoisingDiffusion
 from src.analysis.visualization import NonMolecularVisualization
 from src.diffusion.extra_features import DummyExtraFeatures
-from pytorch_lightning.callbacks import ModelCheckpoint
-
 import hydra
 from omegaconf import DictConfig
+import os 
 
-
+models_dir = 'saved_models'
+gen_graphs_save_dir = 'generated_graphs'
 no_of_graphs_to_generate = 10
-
 
 @hydra.main(version_base='1.1', config_path='../configs', config_name='config')
 def main(cfg: DictConfig):
-    dataset_config = cfg["dataset"]
-    datamodule = LargeGraphModule(cfg)
-    sampling_metrics = LargeGraphSamplingMetrics(datamodule.dataloaders)
+    
+    root_path = os.getcwd().split('outputs')[0]
 
-    dataset_infos = LargeGraphDatasetInfos(datamodule, dataset_config)
+    os.makedirs(os.path.join(root_path, gen_graphs_save_dir, cfg.dataset.name), exist_ok=True)
+
+    datamodule = LargeGraphModule(cfg, sample=False)
+    # sampling_metrics = LargeGraphSamplingMetrics(datamodule.dataloaders)
+
+    dataset_infos = LargeGraphDatasetInfos(datamodule, cfg["dataset"])
     train_metrics = TrainAbstractMetricsDiscrete()
     visualization_tools = NonMolecularVisualization()
     extra_features = DummyExtraFeatures()
     domain_features = DummyExtraFeatures()
     dataset_infos.compute_input_output_dims(datamodule=datamodule, extra_features=extra_features,
                                             domain_features=domain_features)
-    model_kwargs = {'dataset_infos': dataset_infos, 'train_metrics': train_metrics, 'visualization_tools': visualization_tools,
-                    'sampling_metrics': sampling_metrics, 'extra_features': extra_features, 'domain_features': domain_features }
 
-    print(cfg)
+    model_kwargs = {'dataset_infos': dataset_infos, 
+                    'train_metrics': train_metrics, 
+                    'visualization_tools': visualization_tools,
+                    'sampling_metrics': None, 
+                    'extra_features': extra_features, 
+                    'domain_features': domain_features }
 
-    model = DiscreteDenoisingDiffusion(cfg=cfg, **model_kwargs)
+    model_path = None 
+    import pdb; pdb.set_trace()
+    for file in os.listdir(os.path.join(root_path, models_dir)):
+        if file.endswith('.ckpt') and cfg.dataset.name in file:
+            model_path = file
+            break
 
-    name = cfg.general.name
-    callbacks = []
-    if cfg.train.save_model:
-        checkpoint_callback = ModelCheckpoint(dirpath=f"checkpoints/{cfg.general.name}",
-                                                filename='{epoch}',
-                                                monitor='val/epoch_NLL',
-                                                save_top_k=5,
-                                                mode='min',
-                                                every_n_epochs=1)
-        callbacks.append(checkpoint_callback)
+    print('using model : ', model_path)
+
+    model = DiscreteDenoisingDiffusion(cfg=cfg, **model_kwargs).load_from_checkpoint(model_path)
 
     device = torch.device('cuda')
     model.to(device)
@@ -58,7 +62,6 @@ def main(cfg: DictConfig):
         samples_left_to_save = 1    #cfg.general.final_model_samples_to_save
         number_chain_steps = cfg.general.number_chain_steps
         chains_left_to_save = cfg.general.final_model_chains_to_save
-        samples = []
         id = 0
         edge_list_samples = []
         number_of_edges = []
@@ -96,9 +99,9 @@ def main(cfg: DictConfig):
             samples_left_to_generate -= to_generate
             chains_left_to_save -= chains_save
 
-        with open('./' + str(i) + f'_{cfg.dataset.name}_edge_list.pkl', 'wb') as f:
+        with open(os.path.join(gen_graphs_save_dir, cfg.dataset.name, + str(i) + f'_{cfg.dataset.name}_edge_list.pkl'), 'wb') as f:
             pickle.dump(edge_list_samples, f)
-        with open('./' + str(i) + f'_{cfg.dataset.name}_edge_list_numbers_sampled.pkl', 'wb') as f:
+        with open(os.path.join(gen_graphs_save_dir, cfg.dataset.name, + str(i) + f'_{cfg.dataset.name}_edge_list_numbers_sampled.pkl'), 'wb') as f:
             pickle.dump(number_of_edges, f)
 
 
