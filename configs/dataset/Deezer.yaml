@@ -1,0 +1,4 @@
+name: 'deezer'
+edge_count: 10
+batch_size: 2
+# graphs_gen_count: 10 # comment out to generate 1 by default 
