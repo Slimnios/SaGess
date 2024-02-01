@@ -65,7 +65,7 @@ def get_resume_adaptive(cfg, model_kwargs):
 def setup_wandb(cfg):
     config_dict = omegaconf.OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     kwargs = {'name': 'sagess', 'project': f'sagess_{cfg.dataset.name}', 'config': config_dict,
-              'settings': wandb.Settings(_disable_stats=True), 'reinit': True, 
+              'settings': wandb.Settings(_disable_stats=False), 'reinit': True, 
               'mode': cfg.general.wandb,
             #   , 'entity': ''
               }

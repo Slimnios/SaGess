@@ -63,8 +63,6 @@ class LargeGraphDataset(Dataset):
             # print(graphs.data.has_isolated_nodes())
             
             if directed_graph == True:
-                #edge_list = to_undirected(graphs.data.edge_index)
-
                 edge_list = graphs.data.edge_index
                 edge_list_nx = [(int(i[0]), int(i[1])) for i in edge_list.transpose(0, 1)]
                 nx_graph = nx.from_edgelist(edge_list_nx, create_using=nx.DiGraph)
