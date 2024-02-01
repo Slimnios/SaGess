@@ -840,7 +840,6 @@ class SpectreSamplingMetrics(nn.Module):
         networkx_graphs = []
         for i, batch in enumerate(loader):
             # TODO: this does not run with current loader
-            #import pdb; pdb.set_trace()
             # with to data list the magic happens and we get back our graphs in the batches
             batch.x = batch.x.to_dense()
             data_list = batch.to_data_list()

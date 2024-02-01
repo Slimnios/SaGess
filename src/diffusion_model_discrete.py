@@ -195,15 +195,14 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
 
             ident = 0
             while samples_left_to_generate > 0:
-                bs = self.cfg.train.batch_size
+                bs = self.cfg.dataset.batch_size
                 to_generate = min(samples_left_to_generate, bs)
                 to_save = min(samples_left_to_save, bs)
-                print('to generate'+str(to_generate))
+                # print('to generate'+str(to_generate))
                 chains_save = min(chains_left_to_save, bs)
-                print('to save' + str(to_save))
-                print('chains_save ' + str(chains_save))
-                #import pdb;pdb.set_trace()
-                samples.extend(self.sample_batch(batch_id=ident, batch_size=self.cfg.train.batch_size, num_nodes=None,
+                # print('to save' + str(to_save))
+                # print('chains_save ' + str(chains_save))
+                samples.extend(self.sample_batch(batch_id=ident, batch_size=self.cfg.dataset.batch_size, num_nodes=None,
                                                  save_final=to_save,
                                                  keep_chain=chains_save,
                                                  number_chain_steps=self.number_chain_steps))
@@ -266,7 +265,7 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
         while samples_left_to_generate > 0:
             print(f'Samples left to generate: {samples_left_to_generate}/'
                   f'{self.cfg.general.final_model_samples_to_generate}', end='', flush=True)
-            bs = self.cfg.train.batch_size
+            bs = self.cfg.dataset.batch_size
             to_generate = min(samples_left_to_generate, bs)
             to_save = min(samples_left_to_save, bs)
             chains_save = min(chains_left_to_save, bs)
@@ -414,12 +413,10 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
         assert (abs(Qtb.E.sum(dim=2) - 1.) < 1e-4).all()
 
         # Compute transition probabilities
-        #import pdb;pdb.set_trace() Had to add the .int() here because of error otherwise, don't know why though
         tempX = Qtb.X
         tempE = Qtb.E
         probX = X.float() @ tempX  # (bs, n, dx_out)
         probE = E.float() @ tempE.unsqueeze(1)  # (bs, n, n, de_out)
-        #import pdb; pdb.set_trace()
         sampled_t = diffusion_utils.sample_discrete_features(probX=probX, probE=probE, node_mask=node_mask)
 
         X_t = F.one_hot(sampled_t.X, num_classes=self.Xdim_output)

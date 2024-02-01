@@ -36,7 +36,7 @@ class TrainLoss(nn.Module):
                       'train_loss/node_MSE': self.train_node_mse.compute(),
                       'train_loss/edge_MSE': self.train_edge_mse.compute(),
                       'train_loss/y_mse': self.train_y_mse.compute()}
-            wandb.log(to_log, commit=True)
+            wandb.log(to_log, commit=False)
 
         return mse
 
@@ -104,7 +104,7 @@ class TrainLossDiscrete(nn.Module):
                       "train_loss/X_CE": self.edge_loss.compute() if true_X.numel() > 0 else -1,
                       "train_loss/E_CE": loss_E if true_E.numel() > 0 else -1,
                       "train_loss/y_CE": self.node_loss.compute() if true_y.numel() > 0 else -1}
-            wandb.log(to_log, commit=True)
+            wandb.log(to_log, commit=False)
         return loss_X + self.lambda_train[0] * loss_E + self.lambda_train[1] * loss_y
 
     def reset(self):

@@ -1,0 +1,4 @@
+name: 'Cora'
+directed: True
+edge_count: 10556
+batch_size: 32

@@ -191,7 +191,7 @@ class LiftedDenoisingDiffusion(pl.LightningModule):
 
             ident = 0
             while samples_left_to_generate > 0:
-                bs = self.cfg.train.batch_size
+                bs = self.cfg.dataset.batch_size
                 to_generate = min(samples_left_to_generate, bs)
                 to_save = min(samples_left_to_save, bs)
                 chains_save = min(chains_left_to_save, bs)
@@ -264,7 +264,7 @@ class LiftedDenoisingDiffusion(pl.LightningModule):
         samples = []
         id = 0
         while samples_left_to_generate > 0:
-            bs = self.cfg.train.batch_size
+            bs = self.cfg.dataset.batch_size
             to_generate = min(samples_left_to_generate, bs)
             to_save = min(samples_left_to_save, bs)
             chains_save = min(chains_left_to_save, bs)

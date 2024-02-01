@@ -1,0 +1,6 @@
+# PyTorch Geometric requirements 
+torch-geometric
+torch-cluster
+torch-scatter
+torch-spline-conv
+torch-sparse

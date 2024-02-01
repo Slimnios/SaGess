@@ -162,7 +162,6 @@ with open('outputs/Synthetic_benchmark/DSBM_edge_list_sbm.pkl','rb') as f:
 
 edge_list_syn = np.load('outputs/Synthetic_benchmark/EmailEUCore_our_vae_generated_graph.npy')
          # edge_list_syn.append((int(e[0]),int(e[1])))
-# import pdb; pdb.set_trace()
 # edge_list_syn = nx.from_edgelist('outputs/Synthetic_benchmark/Cora_NetGAN_generated_graph.npy',create_using=nx.DiGraph())
 
 #
@@ -193,9 +192,7 @@ base_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir,
 # edge_list = [(int(i[0]), int(i[1])) for i in graphs.data.edge_index.transpose(0,1)]
 #
 # real_graph = nx.from_edgelist(edge_list, create_using=nx.Graph())
-# import pdb;pdb.set_trace()
 # graphs = Planetoid("\..", "Cora", transform=T.NormalizeFeatures())
-#import pdb;pdb.set_trace()
 
 # graphs = AttributedGraphDataset(base_path,"Wiki")
 graphs = EmailEUCore(base_path)
@@ -280,7 +277,6 @@ print(compute_graph_statistics(syn_graph))
 
 
 
-import pdb;pdb.set_trace()
 
 real_torch_graph = torch.tensor(np.array(list(real_graph.edges())).T,dtype=torch.long)
 
@@ -438,12 +434,4 @@ edge_list_samples = list(G.edges())
 
 with open('vgae_eucore_edge_list.pkl', 'wb') as f:
     pickle.dump(edge_list_samples, f)
-
-
-import pdb; pdb.set_trace()
-
-
-
-
-
 
