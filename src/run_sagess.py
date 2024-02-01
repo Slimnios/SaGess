@@ -7,14 +7,15 @@ import torch
 import utils
 
 from analysis.spectre_utils import LargeGraphSamplingMetrics
-from datasets.large_graph_datasets import LargeGraphModule,LargeGraphDatasetInfos
+from datasets.large_graph_datasets import LargeGraphModule, LargeGraphDatasetInfos
 from metrics.abstract_metrics import TrainAbstractMetricsDiscrete
 from diffusion_model_discrete import DiscreteDenoisingDiffusion
+from diffusion_model import LiftedDenoisingDiffusion
 from analysis.visualization import NonMolecularVisualization
 from diffusion.extra_features import DummyExtraFeatures
 from pytorch_lightning.callbacks import ModelCheckpoint
 import networkx as nx
-
+import pickle
 import hydra
 import omegaconf
 from omegaconf import DictConfig
@@ -126,6 +127,61 @@ def main(cfg: DictConfig):
 
     #trainer.test(model, datamodule=datamodule, ckpt_path=cfg.general.test_only)
     trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.general.resume)
+
+    device = torch.device('cuda')
+    model.to(device)
+    dir = cfg.dataset.directed if hasattr(cfg.dataset, 'directed') else False
+    no_of_graphs_to_generate = cfg.dataset.graphs_gen_count if hasattr(cfg.dataset, 'graphs_gen_count') else 1
+
+    for i in range(no_of_graphs_to_generate):
+        torch.cuda.empty_cache()
+        samples_left_to_generate = cfg.general.final_model_samples_to_generate
+        samples_left_to_save = 1    #cfg.general.final_model_samples_to_save
+        number_chain_steps = cfg.general.number_chain_steps
+        chains_left_to_save = cfg.general.final_model_chains_to_save
+        id = 0
+        edge_list_samples = []
+        number_of_edges = []
+        n_edges = 0
+
+        while samples_left_to_generate > 0:# or n_edges < 5:
+            print(f'Samples left to generate: {samples_left_to_generate}/ '
+                  f'{cfg.general.final_model_samples_to_generate}', end='', flush=True)
+            bs = cfg.dataset.batch_size
+            to_generate = min(samples_left_to_generate,cfg.dataset.batch_size)
+            to_save = min(samples_left_to_save, bs)
+            #print('to_save: ' +str(to_save))
+            #print('to_generate: '+str(to_generate))
+            chains_save = 0#min(chains_left_to_save, bs)
+            temp_samples = model.sample_batch(id, to_generate, num_nodes=None, save_final=to_save, keep_chain=chains_save, number_chain_steps=number_chain_steps)
+            #print('chains_save: '+str(chains_save))
+            #samples.extend(model.sample_batch(id, to_generate, num_nodes=None, save_final=to_save, keep_chain=chains_save, number_chain_steps=number_chain_steps))
+            #import pdb; pdb.set_trace()
+            for sample in temp_samples:
+                temp_indexes = torch.nonzero(torch.tensor(sample[1]))
+                edge_list_samples += [((int(sample[0][i].cpu())), int(sample[0][j].cpu())) for i, j in temp_indexes]
+                if dir == True:
+                    g = nx.from_edgelist(edge_list_samples, create_using=nx.DiGraph())
+                else:
+                    g = nx.from_edgelist(edge_list_samples, create_using=nx.Graph())
+                n_edges = len(list(g.edges()))
+                number_of_edges.append(n_edges)
+                if n_edges > cfg.dataset.edge_count:
+                    break
+
+            print('number of edges sampled: '+str(n_edges))
+            if n_edges > cfg.dataset.edge_count:
+                break
+            id += to_generate
+            samples_left_to_save -= to_save
+            samples_left_to_generate -= to_generate
+            chains_left_to_save -= chains_save
+
+        with open('./' + str(i) + f'_{cfg.dataset.name}_edge_list.pkl', 'wb') as f:
+            pickle.dump(edge_list_samples, f)
+        with open('./' + str(i) + f'_{cfg.dataset.name}_edge_list_numbers_sampled.pkl', 'wb') as f:
+            pickle.dump(number_of_edges, f)
+    
     
     
 if __name__ == '__main__':
