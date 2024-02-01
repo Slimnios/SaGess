@@ -32,7 +32,9 @@ Make sure to set the 'entity' parameter in the `setup_wandb()` function located 
 ## Running the code
     
 All code is currently launched with the following: 
-``` python src\run_sagess.py dataset=Cora ```
+```
+ python src\run_sagess.py dataset=Cora
+```
 
 4 datasets from `torch_geometric` are supported: Cora, Wiki, EmailEUCore, ego-facebook and one custom dataset loaded as a `.pkl` file. All the datasets are downloaded to or placed in the `data` folder. 
 
