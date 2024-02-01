@@ -34,8 +34,7 @@ def random_walk(G, start_node, length):
     return rw
 
 class LargeGraphDataset(Dataset):
-    def __init__(self, data_file, data_name="custom", sampling_method='mix'):
-        # self.lock = Lock()
+    def __init__(self, data_file, data_name="custom",sampling_method='ego'):
         if data_name == "custom":
             self.data_file = data_file
             base_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, 'data')
