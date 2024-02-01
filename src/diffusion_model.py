@@ -648,8 +648,8 @@ class LiftedDenoisingDiffusion(pl.LightningModule):
             molecule_list.append([atom_types, edge_types])
 
         # Visualize chains
-        view = False:
-        if view==True:#self.visualization_tools is not None:
+        view = False
+        if view==True: 
             print('Visualizing chains...')
             current_path = os.getcwd()
             num_molecules = chain_X.size(1)       # number of molecules

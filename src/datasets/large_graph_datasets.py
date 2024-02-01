@@ -18,11 +18,11 @@ import torch.nn.functional as F
 import torch_geometric.transforms as T
 import pickle
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 
 def random_walk(G, start_node, length):
-    # G_copy = copy.copy(G)
-    # G_copy = G_copy.to_undirected()
     prev_node = start_node
     rw = [prev_node]
     n_steps = 0
@@ -34,11 +34,11 @@ def random_walk(G, start_node, length):
     return rw
 
 class LargeGraphDataset(Dataset):
-    def __init__(self, data_file, data_name="custom",sampling_method='ego'):
+    def __init__(self, data_file, data_name="custom", sampling_method='ego'):
+        # self.lock = Lock()
         if data_name == "custom":
             self.data_file = data_file
             base_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, 'data')
-            sbm_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data')
             directed_graph = False
 
             if self.data_file == 'Wiki':
@@ -59,128 +59,97 @@ class LargeGraphDataset(Dataset):
                         with open(base_path + '/sbm_graph.pkl', 'rb') as f:
                             self.data = pickle.load(f)
                 graphs = SBMGraph()
+            if self.data_file == 'deezer':
+                class Deezer:
+                    def __init__(self):
+                        self.data = None 
+                        with open(base_path + '/deezer_edge_lists.pkl', 'rb') as f:
+                            graph_list = pickle.load(f)
+                        self.data = []
+                        for edge_list in graph_list:
+                            undirected_edge_list = edge_list + [(j, i) for i, j in edge_list]
+                            edge_index = torch.tensor(undirected_edge_list, dtype=torch.long).t().contiguous()
+                            n = edge_index.max().item() + 1
+                            
+                            X = torch.ones(n, 1, dtype=torch.float)
+                            y = torch.zeros([1, 0]).float()
+                            edge_attr = torch.zeros(edge_index.shape[-1], 2, dtype=torch.float)
+                            edge_attr[:, 1] = 1
+                            num_nodes = n * torch.ones(1, dtype=torch.long)
+                            
+                            self.data.append(Data(x=X, 
+                                                edge_index=edge_index, 
+                                                edge_attr=edge_attr,
+                                                y=y, n_nodes=num_nodes))
+                        
+                        self.data = self.data[-1]
+                
+                graphs = Deezer()
+
             
             # print(graphs.data.has_isolated_nodes())
             
             if directed_graph == True:
                 edge_list = graphs.data.edge_index
                 edge_list_nx = [(int(i[0]), int(i[1])) for i in edge_list.transpose(0, 1)]
-                nx_graph = nx.from_edgelist(edge_list_nx, create_using=nx.DiGraph)
+                self.nx_graph = nx.from_edgelist(edge_list_nx, create_using=nx.DiGraph)
             else:
                 edge_list = to_undirected(graphs.data.edge_index)
                 edge_list_nx = [(int(i[0]), int(i[1])) for i in edge_list.transpose(0, 1)]
-                nx_graph = nx.from_edgelist(edge_list_nx)
+                self.nx_graph = nx.from_edgelist(edge_list_nx)
 
             #nx_graph = nx.k_core(nx_graph, k= 27)
-            print('edges in graph : ', len(list(nx_graph.edges())))
+            print('edges in graph : ', len(list(self.nx_graph.edges())))
 
             y = torch.zeros([1, 0]).float()
-            n_nodes = len(list(nx_graph.nodes()))#graphs.data.num_nodes
+            n_nodes = len(list(self.nx_graph.nodes()))
             print('nodes in graph : ', n_nodes)
             subgraph_size = 20
-            samples_sizes = []
-            #int(n_nodes ** 2 * math.log(n_nodes) / 100)
+
+            self.samples_sizes = []
+
             if sampling_method == 'mix':
                 print('Sampling type: mix')
-                G_copy = copy.copy(nx_graph)
-                G_copy = G_copy.to_undirected()
-                dataset_node_lists = []
-                print('sampling nodes : ')
-                for n in tqdm(nx_graph.nodes()):
-                    # print(n)
+                self.dataset_node_lists = []
 
-                    for i in range(30):
-                        final_sample = random_walk(G_copy, n, subgraph_size)
-                        samples_sizes.append(subgraph_size)
+                self.random_walk_sample(30, subgraph_size)
+                self.ego_sample(7, subgraph_size)
+                self.uniform_sample(7000, subgraph_size)
 
-                        dataset_node_lists.append(final_sample)
-
-                print('sampling nodes : ')
-                for n in tqdm(nx_graph.nodes()):
-                    # print(n)
-                    ego_net = nx.ego_graph(nx_graph.to_undirected(), n, radius=2)
-
-                    temp_initial_size = len(list(ego_net.nodes()))
-                    for i in range(7):
-                        temp_ego = copy.deepcopy(ego_net)
-                        temp_size = temp_initial_size
-                        final_sample = list(temp_ego.nodes())
-                        while temp_size > subgraph_size:
-                            n_nodes_to_burn = int(temp_size / 2)
-                            temp_burning = copy.deepcopy(list(temp_ego.nodes()))
-                            temp_burning.remove(n)
-                            burned_nodes = list(random.choices(temp_burning, k=n_nodes_to_burn))
-                            temp_ego.remove_nodes_from(burned_nodes)
-                            final_sample = list(set(list(max(nx.connected_components(temp_ego), key=len)) + [n]))
-                            temp_size = len(final_sample)
-
-                        samples_sizes.append(temp_size)
-
-                        dataset_node_lists.append(final_sample)
-                n_samples = 7000
-                samples_sizes += [subgraph_size for i in range(n_samples)]
-                dataset_node_lists+=[list(random.choices(range(n_nodes), k=subgraph_size)) for i in range(n_samples)]
+                # self.random_walk_sample_parallel(30, subgraph_size)
+                # self.ego_sample_parallel(7, subgraph_size)
+                # self.uniform_sample_parallel(7000, subgraph_size)
 
             if sampling_method == 'random walk':
                 print('Sampling type: random walk')
-                G_copy = copy.copy(nx_graph)
-                G_copy = G_copy.to_undirected()
-                dataset_node_lists = []
-                print('sampling nodes : ')
-                for n in tqdm(nx_graph.nodes()):
-                    # print(n)
-
-                    for i in range(40):
-                        final_sample = random_walk(G_copy,n,subgraph_size)
-                        samples_sizes.append(subgraph_size)
-
-                        dataset_node_lists.append(final_sample)
+                self.dataset_node_lists = []
+                self.random_walk_sample(40, subgraph_size)
+                # self.random_walk_sample_parallel(40, subgraph_size)
 
             if sampling_method == 'ego':
                 print('Sampling type: ego')
-                dataset_node_lists = []
-                print('sampling nodes : ')
-                for n in tqdm(nx_graph.nodes()):
-                    # print(n)
-                    ego_net = nx.ego_graph(nx_graph.to_undirected(),n, radius = 2)
-
-                    temp_initial_size = len(list(ego_net.nodes()))
-                    for i in range(10):
-                        temp_ego = copy.deepcopy(ego_net)
-                        temp_size = temp_initial_size
-                        final_sample = list(temp_ego.nodes())
-                        while temp_size > subgraph_size:
-                            n_nodes_to_burn = int(temp_size/2)
-                            temp_burning = copy.deepcopy(list(temp_ego.nodes()))
-                            temp_burning.remove(n)
-                            burned_nodes = list(random.choices(temp_burning, k = n_nodes_to_burn))
-                            temp_ego.remove_nodes_from(burned_nodes)
-                            final_sample = list(set(list(max(nx.connected_components(temp_ego), key=len))+[n]))
-                            temp_size = len(final_sample)
-
-
-
-                        samples_sizes.append(temp_size)
-
-                        dataset_node_lists.append(final_sample)
+                self.dataset_node_lists = []
+                self.ego_sample(10, subgraph_size)
+                # self.ego_sample_parallel(10, subgraph_size)
 
             elif sampling_method == 'uniform':
                 print('Sampling type: uniform')
-                n_samples = 10000
-                dataset_node_lists = [list(random.choices(range(n_nodes), k=subgraph_size)) for i in range(n_samples)]
-                samples_sizes = [subgraph_size for i in range(n_samples)]
+                self.dataset_node_lists = []
+                self.uniform_sample(10000, subgraph_size)
+                # self.uniform_sample_parallel(10000, subgraph_size)
 
-            print(f'We sampled {len(dataset_node_lists)} subgraphs')
-            n_samples = len(dataset_node_lists)
-            self.sample_size = len(dataset_node_lists)
+            
+            n_samples = len(self.dataset_node_lists)
             print(f'We need to sample {n_samples} subgraphs')
+            print(f'We sampled {len(self.dataset_node_lists)} subgraphs')
+            self.sample_size = len(self.dataset_node_lists)
+            
             # sampled graphs effectively for training: 90%
-            dataset_samples_initialids = [(dataset_node_lists[i],
-                                           subgraph(torch.tensor(dataset_node_lists[i]), edge_list)[0])
+            dataset_samples_initialids = [(self.dataset_node_lists[i],
+                                           subgraph(torch.tensor(self.dataset_node_lists[i]), edge_list)[0])
                                           for i in range(n_samples)]
-            #samples_sizes = [len(sample) for sample in dataset_node_lists]
-            dict_maps = [{dataset_samples_initialids[j][0][i]: i for i in range(samples_sizes[j])} for j in range(n_samples)]
-            #print(samples_sizes)
+
+            dict_maps = [{dataset_samples_initialids[j][0][i]: i for i in range(self.samples_sizes[j])} for j in range(n_samples)]
             dataset_samples_wnmaps = [(torch.tensor([[x] for x in dataset_samples_initialids[i][0]]),
                                        dataset_samples_initialids[i][1].apply_(lambda x: dict_maps[i][x])) for i in
                                       range(n_samples)]
@@ -191,6 +160,118 @@ class LargeGraphDataset(Dataset):
                                n_nodes=subgraph_size*torch.ones(1, dtype=torch.long), y = y)  for i in range(n_samples)]
 
             self.data = Train_data
+
+
+    def uniform_sample(self, n_samples=5000, subgraph_size=20):
+        n_nodes = len(list(self.nx_graph.nodes()))
+        self.samples_sizes += [subgraph_size for i in range(n_samples)]
+        self.dataset_node_lists+=[list(random.choices(range(n_nodes), k=subgraph_size)) for i in tqdm(range(n_samples), desc="Uniform Sampling")]
+
+    def random_walk_sample(self, loop=30, subgraph_size=20):
+        G_copy = copy.copy(self.nx_graph)
+        G_copy = G_copy.to_undirected()
+        self.dataset_node_lists = []
+        
+        for n in tqdm(self.nx_graph.nodes(), desc="Random Walk Sampling"):
+            for i in range(loop):
+                final_sample = random_walk(G_copy, n, subgraph_size)
+                self.samples_sizes.append(subgraph_size)
+
+                self.dataset_node_lists.append(final_sample)
+
+    def ego_sample(self, loop=10, subgraph_size=20, radius=2):
+        for n in tqdm(self.nx_graph.nodes(), desc="Ego Sampling"):
+            ego_net = nx.ego_graph(self.nx_graph.to_undirected(), n, radius=radius)
+
+            temp_initial_size = len(list(ego_net.nodes()))
+            for i in range(loop):
+                temp_ego = copy.deepcopy(ego_net)
+                temp_size = temp_initial_size
+                final_sample = list(temp_ego.nodes())
+                while temp_size > subgraph_size:
+                    n_nodes_to_burn = int(temp_size / 2)
+                    temp_burning = copy.deepcopy(list(temp_ego.nodes()))
+                    temp_burning.remove(n)
+                    burned_nodes = list(random.choices(temp_burning, k=n_nodes_to_burn))
+                    temp_ego.remove_nodes_from(burned_nodes)
+                    final_sample = list(set(list(max(nx.connected_components(temp_ego), key=len)) + [n]))
+                    temp_size = len(final_sample)
+
+                self.samples_sizes.append(temp_size)
+
+                self.dataset_node_lists.append(final_sample)
+
+    def safe_append(self, samples, sizes):
+        with self.lock:
+            self.dataset_node_lists.extend(samples)
+            self.samples_sizes.extend(sizes)
+
+    def random_walk_sample_parallel(self, loop=30, subgraph_size=20, max_workers=1):
+        def task(n):
+            G_copy = copy.copy(self.nx_graph)
+            G_copy = G_copy.to_undirected()
+            samples = []
+            for i in range(loop):
+                final_sample = random_walk(G_copy, n, subgraph_size)
+                samples.append(final_sample)
+            return samples, [subgraph_size] * loop
+
+        futures = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for n in self.nx_graph.nodes():
+                futures.append(executor.submit(task, n))
+
+        for future in as_completed(futures):
+            samples, sizes = future.result()
+            self.safe_append(samples, sizes)
+
+
+    def uniform_sample_parallel(self, n_samples=5000, subgraph_size=20, max_workers=1):
+        n_nodes = len(list(self.nx_graph.nodes()))
+
+        def task(_):
+            return list(random.choices(range(n_nodes), k=subgraph_size)), subgraph_size
+
+        futures = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for _ in range(n_samples):
+                futures.append(executor.submit(task, None))
+
+        for future in as_completed(futures):
+            samples, sizes = future.result()
+            self.safe_append(samples, sizes)
+
+    def ego_sample_parallel(self, loop=10, subgraph_size=20, radius=2, max_workers=1):
+        def task(n):
+            ego_net = nx.ego_graph(self.nx_graph.to_undirected(), n, radius=radius)
+            temp_initial_size = len(list(ego_net.nodes()))
+            samples = []
+            sizes = []
+            for i in range(loop):
+                temp_ego = copy.deepcopy(ego_net)
+                temp_size = temp_initial_size
+                final_sample = list(temp_ego.nodes())
+                while temp_size > subgraph_size:
+                    n_nodes_to_burn = int(temp_size / 2)
+                    temp_burning = copy.deepcopy(list(temp_ego.nodes()))
+                    temp_burning.remove(n)
+                    burned_nodes = list(random.choices(temp_burning, k=n_nodes_to_burn))
+                    temp_ego.remove_nodes_from(burned_nodes)
+                    final_sample = list(set(list(max(nx.connected_components(temp_ego), key=len)) + [n]))
+                    temp_size = len(final_sample)
+                samples.append(final_sample)
+                sizes.append(temp_size)
+            return samples, sizes
+
+        futures = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for n in tqdm(self.nx_graph.nodes(), desc="Parallel Ego Sampling"):
+                futures.append(executor.submit(task, n))
+
+        for future in as_completed(futures):
+            samples, sizes = future.result()
+            self.safe_append(samples, sizes)
+
 
     def __len__(self):
         return self.sample_size
@@ -221,6 +302,7 @@ class LargeGraphDataModule(AbstractDataModule):
         self.n_graphs = n_graphs/2
         self.prepare_data()
         self.inner = self.train_dataloader()
+        
     def __getitem__(self, item):
         return self.inner[item]
 
@@ -246,7 +328,7 @@ class LargeGraphModule(LargeGraphDataModule):
 
 
 class LargeGraphDatasetInfos(AbstractDatasetInfos):
-    def __init__(self, datamodule, dataset_config):
+    def __init__(self, datamodule):
         self.datamodule = datamodule
         self.name = 'nx_graphs'
         self.n_nodes = self.datamodule.node_counts()
