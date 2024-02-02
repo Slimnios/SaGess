@@ -37,15 +37,15 @@ cat configs/dataset/${dataset}.yaml
 
 # Path to scratch directory on host
 scratch_host="/raid/local_scratch"
-scratch_root="$scratch_host/${USER}/${job_id}/${repo}"
+scratch_root="$scratch_host/${USER}/${job_id}"
 # Files and directories to copy to scratch before the job
 inputs="."
 # File and directories to copy from scratch after the job
 outputs="outputs"
 # Singularity container
-container="./container/${name}_ws.sif"
+container="./container/${repo}_ws.sif"
 # Singularity 'exec' command
-container_command="./run_script.sh"
+container_command="./hpc_run_script.sh"
 # Command to execute
 run_command="singularity exec
   --nv
