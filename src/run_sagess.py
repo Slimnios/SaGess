@@ -68,7 +68,7 @@ def setup_wandb(cfg):
     kwargs = {'name': 'sagess', 'project': f'sagess_{cfg.dataset.name}', 'config': config_dict,
               'settings': wandb.Settings(_disable_stats=False), 'reinit': True, 
               'mode': cfg.general.wandb,
-            #   , 'entity': ''
+            #   'entity': ''
               }
     wandb.init(**kwargs)
     wandb.save('*.txt')

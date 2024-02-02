@@ -12,3 +12,5 @@ conda run -n $CONDA_ENV pip install -r pyg_reqs.txt
 # Clean up any unnecessary files
 conda run -n $CONDA_ENV conda clean -y --all
 
+# RUN THIS COMMAND AFTER ENV IS CREATED
+# g++ -O2 -std=c++11 -o ./src/analysis/orca/orca ./src/analysis/orca/orca.cpp

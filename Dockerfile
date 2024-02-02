@@ -18,7 +18,8 @@ ENV PATH=/opt/conda/bin:$PATH
 
 COPY ./requirements.txt ./requirements.txt 
 
-RUN apt-get update && apt-get install -y libxrender1 && \
+RUN apt-get update && \
+    apt-get install -y libgdk-pixbuf2.0-0 libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgtk-3-0 libx11-6 libxcursor1 libxext6 libxrender1 libffi7 libgirepository-1.0-1 && \
     rm -rf /var/lib/apt/lists/* && \
     conda create -y -n $CONDA_ENV python=3.10 && \
     echo "source activate $CONDA_ENV" > ~/.bashrc && \

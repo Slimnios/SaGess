@@ -4,6 +4,8 @@ channels:
   - pytorch
   - defaults
 dependencies:
+  - gcc 
+  - libgcc
   - python=3.10
   - graph-tool
   - pip
