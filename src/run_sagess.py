@@ -1,5 +1,5 @@
 import os
-
+import time 
 from pytorch_lightning import Trainer
 
 import wandb
@@ -129,14 +129,23 @@ def main(cfg: DictConfig):
                       callbacks=callbacks,
                       logger=[])
 
+    train_start_time = time.time()
     #trainer.test(model, datamodule=datamodule, ckpt_path=cfg.general.test_only)
     trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.general.resume)
+    train_end_time = time.time()
+    train_time = train_end_time - train_start_time
+    minutes = train_time // 60
+    seconds = train_time % 60
+    print('train start time : ', train_start_time)
+    print('train end time : ', train_end_time)
+    print(f"Total train time: {int(minutes)} mins, {seconds:.2f} secs")
 
     device = torch.device('cuda')
     model.to(device)
     dir = cfg.dataset.directed if hasattr(cfg.dataset, 'directed') else False
     no_of_graphs_to_generate = cfg.dataset.graphs_gen_count if hasattr(cfg.dataset, 'graphs_gen_count') else 1
-
+    gen_start_time = time.time()
+    
     for i in range(no_of_graphs_to_generate):
         torch.cuda.empty_cache()
         samples_left_to_generate = cfg.general.final_model_samples_to_generate
@@ -183,6 +192,15 @@ def main(cfg: DictConfig):
         with open('./' + str(i) + f'_{cfg.dataset.name}_edge_list_numbers_sampled.pkl', 'wb') as f:
             pickle.dump(number_of_edges, f)
     
-    
+    gen_end_time = time.time()
+    gen_time = gen_end_time - gen_start_time
+    minutes = gen_time // 60
+    seconds = gen_time % 60
+    print('gen start time : ', gen_start_time)
+    print('gen end time : ', gen_end_time)
+    print(f"Total time taken to generate {no_of_graphs_to_generate} graphs: {int(minutes)} mins, {seconds:.2f} secs")
+    print(f"Average time taken to generate {no_of_graphs_to_generate} graphs: {int(minutes)/no_of_graphs_to_generate} mins, {(seconds/no_of_graphs_to_generate):.2f} secs")
+
+
 if __name__ == '__main__':
     main()
