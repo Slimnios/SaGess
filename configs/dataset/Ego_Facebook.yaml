@@ -1,4 +1,4 @@
 name: 'ego-facebook'
 edge_count: 27755
 batch_size: 32
-graphs_gen_count: 10 # comment out to generate 1 by default 
+# graphs_gen_count: 10 # comment out to generate 1 by default 
