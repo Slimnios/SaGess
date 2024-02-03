@@ -1,5 +1,5 @@
 name: 'Cora'
 directed: True
 edge_count: 10556
-batch_size: 32
+batch_size: 16
 # graphs_gen_count: 10  # comment out to generate 1 by default 
