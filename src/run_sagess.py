@@ -64,6 +64,9 @@ def get_resume_adaptive(cfg, model_kwargs):
 
 
 def setup_wandb(cfg):
+    # Disable wandb's Sentry error reporting to run on clusters
+    os.environ["WANDB_ERROR_REPORTING"] = "False"
+    
     config_dict = omegaconf.OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     kwargs = {'name': 'sagess', 'project': f'sagess_{cfg.dataset.name}', 'config': config_dict,
               'settings': wandb.Settings(_disable_stats=False), 'reinit': True, 
@@ -139,6 +142,8 @@ def main(cfg: DictConfig):
     print('train start time : ', train_start_time)
     print('train end time : ', train_end_time)
     print(f"Total train time: {int(minutes)} mins, {seconds:.2f} secs")
+
+    wandb.finish()
 
     device = torch.device('cuda')
     model.to(device)
