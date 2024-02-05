@@ -38,15 +38,16 @@ All code is currently launched with the following:
 
 4 datasets from `torch_geometric` are supported: Cora, Wiki, EmailEUCore, ego-facebook and one custom dataset loaded as a `.pkl` file. All the datasets are downloaded to or placed in the `data` folder. 
 
+Saved checkpoints, wandb log folder and other outputs can be found in the `outputs` folder. 
+
+
+## Configs & parameters
+
 Dataset specific configuration resides in `configs/dataset/*.yaml` files. 
 
 Other default parameters for DiGress are found in `configs/train/train_default.yaml`, `configs\model\discrete.yaml` and `configs\general\general_default.yaml`. 
 
 The following parameters: dataset, number of subgraphs to train on, their size and sampling method are to be set manually in `src/dataset/large_graph_datasets.py`.
-
-You can also find the evaluation pipeline in `src\evaluation.py`. 
-
-Saved checkpoints, wandb log folder and other outputs can be found in the `outputs` folder. 
 
 
 ## Additional support for docker
