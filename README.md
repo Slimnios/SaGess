@@ -36,7 +36,7 @@ All code is currently launched with the following:
  python src\run_sagess.py dataset=Cora
 ```
 
-4 datasets from `torch_geometric` are supported: Cora, Wiki, EmailEUCore, ego-facebook and one custom dataset loaded as a `.pkl` file. All the datasets are downloaded to or placed in the `data` folder. 
+4 datasets from `torch_geometric` are supported: Cora, Wiki, EmailEUCore, ego-facebook and one custom SBM dataset loaded as a `.pkl` file. All the datasets are downloaded to or placed in the `data` folder. 
 
 Saved checkpoints, wandb log folder and other outputs can be found in the `outputs` folder. 
 
