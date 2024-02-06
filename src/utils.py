@@ -7,8 +7,57 @@ import pytorch_lightning as pl
 from overrides import overrides
 from pytorch_lightning.utilities import rank_zero_only
 from torch_geometric.utils import to_dense_adj, to_dense_batch
+import random
+import copy 
+import networkx as nx
 import torch
 torch.manual_seed(120)
+
+def random_walk(G, start_node, length):
+    prev_node = start_node
+    rw = [prev_node]
+    n_steps = 0
+    while n_steps < length-1:
+        node = random.choice(list(G.neighbors(prev_node)))
+        rw.append(node)
+        n_steps += 1
+        prev_node = node
+    return rw
+
+def rw_task(args):
+    n, G, loop, subgraph_size = args
+    G = G.to_undirected()
+    samples = []
+    for _ in range(loop):
+        final_sample = random_walk(G, n, subgraph_size)
+        samples.append(final_sample)
+    return samples, [subgraph_size] * loop
+
+def uniform_task(args):
+    n_nodes, subgraph_size = args
+    return list(random.choices(range(n_nodes), k=subgraph_size)), subgraph_size
+
+def ego_task(args):
+    n, G, radius, loop, subgraph_size = args
+    ego_net = nx.ego_graph(G.to_undirected(), n, radius=radius)
+    temp_initial_size = len(list(ego_net.nodes()))
+    samples = []
+    sizes = []
+    for _ in range(loop):
+        temp_ego = copy.deepcopy(ego_net)
+        temp_size = temp_initial_size
+        final_sample = list(temp_ego.nodes())
+        while temp_size > subgraph_size:
+            n_nodes_to_burn = int(temp_size / 2)
+            temp_burning = copy.deepcopy(list(temp_ego.nodes()))
+            temp_burning.remove(n)
+            burned_nodes = list(random.choices(temp_burning, k=n_nodes_to_burn))
+            temp_ego.remove_nodes_from(burned_nodes)
+            final_sample = list(set(list(max(nx.connected_components(temp_ego), key=len)) + [n]))
+            temp_size = len(final_sample)
+        samples.append(final_sample)
+        sizes.append(temp_size)
+    return samples, sizes
 
 def create_folders(args):
     try:

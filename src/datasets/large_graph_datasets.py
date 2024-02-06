@@ -1,42 +1,29 @@
 import os
-import math
 import random
 
 import networkx as nx
 
 random.seed(10)
 import copy
-import numpy as np
 import torch
 torch.manual_seed(120)
 from torch.utils.data import random_split, Dataset
 from torch_geometric.data import Data
 from torch_geometric.utils import subgraph, to_undirected
-from torch_geometric.datasets import EmailEUCore, Planetoid, Amazon, AttributedGraphDataset, SNAPDataset, StochasticBlockModelDataset
+from torch_geometric.datasets import EmailEUCore, Planetoid, AttributedGraphDataset, SNAPDataset
 from datasets.abstract_dataset import AbstractDataModule, AbstractDatasetInfos
 import torch.nn.functional as F
 import torch_geometric.transforms as T
 import pickle
 from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock
-
-
-def random_walk(G, start_node, length):
-    prev_node = start_node
-    rw = [prev_node]
-    n_steps = 0
-    while n_steps < length-1:
-        node = random.choice(list(G.neighbors(prev_node)))
-        rw.append(node)
-        n_steps += 1
-        prev_node = node
-    return rw
+import multiprocessing as mp 
+from utils import random_walk, rw_task, ego_task, uniform_task
 
 class LargeGraphDataset(Dataset):
-    def __init__(self, data_file, data_name="custom",sampling_method='ego'):
+    def __init__(self, cfg, data_name="custom",sampling_method='mix'):
+        self.cfg = cfg 
+        self.data_file = self.cfg.dataset.name
         if data_name == "custom":
-            self.data_file = data_file
             base_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, 'data')
             directed_graph = False
 
@@ -111,31 +98,37 @@ class LargeGraphDataset(Dataset):
                 print('Sampling type: mix')
                 self.dataset_node_lists = []
 
-                self.random_walk_sample(30, subgraph_size)
-                self.ego_sample(7, subgraph_size)
-                self.uniform_sample(7000, subgraph_size)
+                # self.random_walk_sample(30, subgraph_size)
+                # self.ego_sample(7, subgraph_size)
+                # self.uniform_sample(7000, subgraph_size)
 
-                # self.random_walk_sample_parallel(30, subgraph_size)
-                # self.ego_sample_parallel(7, subgraph_size)
-                # self.uniform_sample_parallel(7000, subgraph_size)
+                self.random_walk_sample_threaded(30, subgraph_size, 
+                                                 max_workers=self.cfg.dataset.sampling_threads)
+                self.ego_sample_threaded(7, subgraph_size, 
+                                         max_workers=self.cfg.dataset.sampling_threads)
+                self.uniform_sample_threaded(7000, subgraph_size, 
+                                             max_workers=self.cfg.dataset.sampling_threads)
 
             if sampling_method == 'random walk':
                 print('Sampling type: random walk')
                 self.dataset_node_lists = []
-                self.random_walk_sample(40, subgraph_size)
-                # self.random_walk_sample_parallel(40, subgraph_size)
+                # self.random_walk_sample(40, subgraph_size)
+                self.random_walk_sample_threaded(40, subgraph_size, 
+                                                 max_workers=self.cfg.dataset.sampling_threads)
 
             if sampling_method == 'ego':
                 print('Sampling type: ego')
                 self.dataset_node_lists = []
-                self.ego_sample(10, subgraph_size)
-                # self.ego_sample_parallel(10, subgraph_size)
+                # self.ego_sample(10, subgraph_size)
+                self.ego_sample_threaded(10, subgraph_size, 
+                                         max_workers=self.cfg.dataset.sampling_threads)
 
             elif sampling_method == 'uniform':
                 print('Sampling type: uniform')
                 self.dataset_node_lists = []
-                self.uniform_sample(10000, subgraph_size)
-                # self.uniform_sample_parallel(10000, subgraph_size)
+                # self.uniform_sample(10000, subgraph_size)
+                self.uniform_sample_threaded(10000, subgraph_size, 
+                                             max_workers=self.cfg.dataset.sampling_threads)
 
             
             n_samples = len(self.dataset_node_lists)
@@ -172,18 +165,18 @@ class LargeGraphDataset(Dataset):
         self.dataset_node_lists = []
         
         for n in tqdm(self.nx_graph.nodes(), desc="Random Walk Sampling"):
-            for i in range(loop):
+            for _ in range(loop):
                 final_sample = random_walk(G_copy, n, subgraph_size)
                 self.samples_sizes.append(subgraph_size)
-
                 self.dataset_node_lists.append(final_sample)
+
 
     def ego_sample(self, loop=10, subgraph_size=20, radius=2):
         for n in tqdm(self.nx_graph.nodes(), desc="Ego Sampling"):
             ego_net = nx.ego_graph(self.nx_graph.to_undirected(), n, radius=radius)
 
             temp_initial_size = len(list(ego_net.nodes()))
-            for i in range(loop):
+            for _ in range(loop):
                 temp_ego = copy.deepcopy(ego_net)
                 temp_size = temp_initial_size
                 final_sample = list(temp_ego.nodes())
@@ -200,76 +193,56 @@ class LargeGraphDataset(Dataset):
 
                 self.dataset_node_lists.append(final_sample)
 
-    def safe_append(self, samples, sizes):
-        with self.lock:
-            self.dataset_node_lists.extend(samples)
-            self.samples_sizes.extend(sizes)
 
-    def random_walk_sample_parallel(self, loop=30, subgraph_size=20, max_workers=1):
-        def task(n):
-            G_copy = copy.copy(self.nx_graph)
-            G_copy = G_copy.to_undirected()
-            samples = []
-            for i in range(loop):
-                final_sample = random_walk(G_copy, n, subgraph_size)
-                samples.append(final_sample)
-            return samples, [subgraph_size] * loop
+    def random_walk_sample_threaded(self, loop=30, subgraph_size=20, max_workers=2):
+        G = copy.copy(self.nx_graph)
 
-        futures = []
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            for n in self.nx_graph.nodes():
-                futures.append(executor.submit(task, n))
+        args_list = [(n, G, loop, subgraph_size) for n in self.nx_graph.nodes()]
 
-        for future in as_completed(futures):
-            samples, sizes = future.result()
-            self.safe_append(samples, sizes)
+        with mp.Pool(processes=max_workers) as pool:
+            results = list(tqdm(pool.imap(rw_task, args_list), total=len(args_list), desc="Threaded Random Walk Sampling"))
+
+        all_samples, all_sizes = zip(*results) 
+        # Flatten the list of lists
+        all_samples = [item for sublist in all_samples for item in sublist]  
+        all_sizes = [item for sublist in all_sizes for item in sublist]
+        
+        self.dataset_node_lists.extend(all_samples)
+        self.samples_sizes.extend(all_sizes)
 
 
-    def uniform_sample_parallel(self, n_samples=5000, subgraph_size=20, max_workers=1):
+    def uniform_sample_threaded(self, n_samples=5000, subgraph_size=20, max_workers=2):
         n_nodes = len(list(self.nx_graph.nodes()))
 
-        def task(_):
-            return list(random.choices(range(n_nodes), k=subgraph_size)), subgraph_size
+        args_list = [(n_nodes, subgraph_size) for n in self.nx_graph.nodes()]
 
-        futures = []
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            for _ in range(n_samples):
-                futures.append(executor.submit(task, None))
+        with mp.Pool(processes=max_workers) as pool:
+            results = list(tqdm(pool.imap(uniform_task, args_list), total=len(args_list), desc="Threaded Uniform Sampling"))
 
-        for future in as_completed(futures):
-            samples, sizes = future.result()
-            self.safe_append(samples, sizes)
+        all_samples, all_sizes = zip(*results) 
+        # Flatten the list of lists
+        all_samples = [item for item in all_samples]  
+        all_sizes = [item for item in all_sizes]
+        
+        self.dataset_node_lists.extend(all_samples)
+        self.samples_sizes.extend(all_sizes)
 
-    def ego_sample_parallel(self, loop=10, subgraph_size=20, radius=2, max_workers=1):
-        def task(n):
-            ego_net = nx.ego_graph(self.nx_graph.to_undirected(), n, radius=radius)
-            temp_initial_size = len(list(ego_net.nodes()))
-            samples = []
-            sizes = []
-            for i in range(loop):
-                temp_ego = copy.deepcopy(ego_net)
-                temp_size = temp_initial_size
-                final_sample = list(temp_ego.nodes())
-                while temp_size > subgraph_size:
-                    n_nodes_to_burn = int(temp_size / 2)
-                    temp_burning = copy.deepcopy(list(temp_ego.nodes()))
-                    temp_burning.remove(n)
-                    burned_nodes = list(random.choices(temp_burning, k=n_nodes_to_burn))
-                    temp_ego.remove_nodes_from(burned_nodes)
-                    final_sample = list(set(list(max(nx.connected_components(temp_ego), key=len)) + [n]))
-                    temp_size = len(final_sample)
-                samples.append(final_sample)
-                sizes.append(temp_size)
-            return samples, sizes
 
-        futures = []
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            for n in tqdm(self.nx_graph.nodes(), desc="Parallel Ego Sampling"):
-                futures.append(executor.submit(task, n))
+    def ego_sample_threaded(self, loop=10, subgraph_size=20, radius=2, max_workers=2):
+        G = copy.copy(self.nx_graph)
 
-        for future in as_completed(futures):
-            samples, sizes = future.result()
-            self.safe_append(samples, sizes)
+        args_list = [(n, G, radius, loop, subgraph_size) for n in self.nx_graph.nodes()]
+
+        with mp.Pool(processes=max_workers) as pool:
+            results = list(tqdm(pool.imap(ego_task, args_list), total=len(args_list), desc="Threaded Ego Sampling"))
+
+        all_samples, all_sizes = zip(*results) 
+        # Flatten the list of lists
+        all_samples = [item for sublist in all_samples for item in sublist]  
+        all_sizes = [item for sublist in all_sizes for item in sublist]
+        
+        self.dataset_node_lists.extend(all_samples)
+        self.samples_sizes.extend(all_sizes)
 
 
     def __len__(self):
@@ -321,7 +294,7 @@ class LargeGraphDataModule(AbstractDataModule):
 class LargeGraphModule(LargeGraphDataModule):
 
     def prepare_data(self):
-        graphs = LargeGraphDataset(self.cfg.dataset.name)
+        graphs = LargeGraphDataset(self.cfg)
         return super().prepare_data(graphs)
 
 
