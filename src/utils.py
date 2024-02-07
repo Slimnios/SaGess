@@ -169,16 +169,16 @@ class EMA(pl.Callback):
         if not self._ema_state_dict_ready:
             return  # Skip Lightning sanity validation check if no ema weights has been loaded from a checkpoint.
 
-    @overrides
-    def on_save_checkpoint(
-            self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", checkpoint: Dict
-    ) -> Dict:
-        return {"ema_state_dict": self.ema_state_dict, "_ema_state_dict_ready": self._ema_state_dict_ready}
+    # @overrides
+    # def on_save_checkpoint(
+    #         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", checkpoint: Dict
+    # ) -> Dict:
+    #     return {"ema_state_dict": self.ema_state_dict, "_ema_state_dict_ready": self._ema_state_dict_ready}
 
-    @overrides
-    def on_load_checkpoint(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", callback_state: Dict):
-        self._ema_state_dict_ready = callback_state["_ema_state_dict_ready"]
-        self.ema_state_dict = callback_state["ema_state_dict"]
+    # @overrides
+    # def on_load_checkpoint(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", callback_state: Dict):
+    #     self._ema_state_dict_ready = callback_state["_ema_state_dict_ready"]
+    #     self.ema_state_dict = callback_state["ema_state_dict"]
 
 
 def normalize(X, E, y, norm_values, norm_biases, node_mask):

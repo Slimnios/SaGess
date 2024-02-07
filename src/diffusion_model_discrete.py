@@ -17,8 +17,8 @@ import utils
 torch.manual_seed(120)
 
 class DiscreteDenoisingDiffusion(pl.LightningModule):
-    def __init__(self, cfg, dataset_infos, train_metrics, sampling_metrics, visualization_tools, extra_features,
-                 domain_features):
+    def __init__(self, cfg, dataset_infos, train_metrics, sampling_metrics, 
+                 visualization_tools, extra_features, domain_features):
         super().__init__()
 
         input_dims = dataset_infos.input_dims
@@ -74,7 +74,8 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
                                       act_fn_out=nn.ReLU())
 
         self.noise_schedule = PredefinedNoiseScheduleDiscrete(cfg.model.diffusion_noise_schedule,
-                                                              timesteps=cfg.model.diffusion_steps)
+                                                              timesteps=cfg.model.diffusion_steps, 
+                                                              device= 'cuda' if torch.cuda.is_available() and cfg.general.gpus > 0 else 'cpu')
 
         if cfg.model.transition == 'uniform':
             self.transition_model = DiscreteUniformTransition(x_classes=self.Xdim_output, e_classes=self.Edim_output,
@@ -159,7 +160,7 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
         nll = self.compute_val_loss(pred, noisy_data, dense_data.X, dense_data.E, data.y,  node_mask, test=False)
         return {'loss': nll}
 
-    def validation_epoch_end(self, outs) -> None:
+    def on_validation_epoch_end(self) -> None:
         metrics = [self.val_nll.compute(), self.val_X_kl.compute(), self.val_E_kl.compute(),
                    self.val_y_kl.compute(), self.val_X_logp.compute(), self.val_E_logp.compute(),
                    self.val_y_logp.compute()]
@@ -235,7 +236,7 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
         nll = self.compute_val_loss(pred, noisy_data, dense_data.X, dense_data.E, data.y, node_mask, test=True)
         return {'loss': nll}
 
-    def test_epoch_end(self, outs) -> None:
+    def on_test_epoch_end(self) -> None:
         """ Measure likelihood on a test set and compute stability metrics. """
         metrics = [self.test_nll.compute(), self.test_X_kl.compute(), self.test_E_kl.compute(),
                    self.test_y_kl.compute(), self.test_X_logp.compute(), self.test_E_logp.compute(),

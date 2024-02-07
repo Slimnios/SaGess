@@ -154,7 +154,7 @@ class LiftedDenoisingDiffusion(pl.LightningModule):
                                     node_mask, test=False)
         return {'loss': nll}
 
-    def validation_epoch_end(self, outs) -> None:
+    def on_validation_epoch_end(self, outs) -> None:
         metrics = [self.val_nll.compute(), self.val_X_mse.compute(), self.val_E_mse.compute(),
                    self.val_y_mse.compute(), self.val_X_logp.compute(), self.val_E_logp.compute(),
                    self.val_y_logp.compute()]

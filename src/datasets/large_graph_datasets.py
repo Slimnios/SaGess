@@ -263,40 +263,28 @@ class LargeGraphDataset(Dataset):
         return graph
 
 
-class LargeGraph(LargeGraphDataset):
-    def __init__(self):
-        super().__init__('enron')
-
-
 class LargeGraphDataModule(AbstractDataModule):
     def __init__(self, cfg, n_graphs= 100000):
         super().__init__(cfg)
         self.n_graphs = n_graphs/2
+        self.graphs = LargeGraphDataset(cfg)
         self.prepare_data()
         self.inner = self.train_dataloader()
         
     def __getitem__(self, item):
         return self.inner[item]
 
-    def prepare_data(self, graphs):
-        #print(len(graphs))
-        test_len = int(round(len(graphs) * 0.05))
-        train_len = int(round((len(graphs) - test_len) * 0.95))
+    def prepare_data(self):
+        #print(len(self.graphs))
+        test_len = int(round(len(self.graphs) * 0.05))
+        train_len = int(round((len(self.graphs) - test_len) * 0.95))
         #print(train_len)
-        val_len = len(graphs) - train_len - test_len
+        val_len = len(self.graphs) - train_len - test_len
         print(f'Dataset sizes: train {train_len}, val {val_len}, test {test_len}')
-        splits = random_split(graphs, [train_len, val_len, test_len], generator=torch.Generator().manual_seed(1234))
+        splits = random_split(self.graphs, [train_len, val_len, test_len], generator=torch.Generator().manual_seed(1234))
 
         datasets = {'train': splits[0], 'val': splits[1], 'test': splits[2]}
         super().prepare_data(datasets)
-
-
-class LargeGraphModule(LargeGraphDataModule):
-
-    def prepare_data(self):
-        graphs = LargeGraphDataset(self.cfg)
-        return super().prepare_data(graphs)
-
 
 
 class LargeGraphDatasetInfos(AbstractDatasetInfos):

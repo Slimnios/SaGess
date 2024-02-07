@@ -7,7 +7,7 @@ import torch
 import utils
 
 from analysis.spectre_utils import LargeGraphSamplingMetrics
-from datasets.large_graph_datasets import LargeGraphModule, LargeGraphDatasetInfos
+from datasets.large_graph_datasets import LargeGraphDataModule, LargeGraphDatasetInfos
 from metrics.abstract_metrics import TrainAbstractMetricsDiscrete
 from diffusion_model_discrete import DiscreteDenoisingDiffusion
 from diffusion_model import LiftedDenoisingDiffusion
@@ -80,7 +80,7 @@ def setup_wandb(cfg):
 
 @hydra.main(version_base='1.1', config_path='../configs', config_name='config')
 def main(cfg: DictConfig):
-    datamodule = LargeGraphModule(cfg)
+    datamodule = LargeGraphDataModule(cfg)
     sampling_metrics = LargeGraphSamplingMetrics(datamodule.dataloaders)
 
     dataset_infos = LargeGraphDatasetInfos(datamodule)
@@ -118,7 +118,7 @@ def main(cfg: DictConfig):
         ema_callback = utils.EMA(decay=cfg.train.ema_decay)
         callbacks.append(ema_callback)
     trainer = Trainer(gradient_clip_val=cfg.train.clip_grad,
-                      accelerator='gpu' if torch.cuda.is_available() and cfg.general.gpus > 0 else 'cpu',
+                      accelerator='auto',
                       devices=cfg.general.gpus if torch.cuda.is_available() and cfg.general.gpus > 0 else None,
                       limit_train_batches=20 if name == 'test' else None,
                       limit_val_batches=20 if name == 'test' else None,
@@ -127,7 +127,7 @@ def main(cfg: DictConfig):
                       max_epochs=cfg.train.n_epochs,
                       check_val_every_n_epoch=cfg.general.check_val_every_n_epochs,
                       fast_dev_run=cfg.general.name == 'debug',
-                      strategy='ddp' if cfg.general.gpus > 1 else None,
+                      strategy='ddp' if cfg.general.gpus > 1 else 'auto',
                       enable_progress_bar=False,
                       callbacks=callbacks,
                       logger=[])
