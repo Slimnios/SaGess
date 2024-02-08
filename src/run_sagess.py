@@ -102,6 +102,7 @@ def main(cfg: DictConfig):
     print(cfg)
 
     model = DiscreteDenoisingDiffusion(cfg=cfg, **model_kwargs)
+    # model = torch.compile(model)
 
     name = cfg.general.name
     callbacks = []

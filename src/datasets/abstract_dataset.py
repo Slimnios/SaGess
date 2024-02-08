@@ -42,10 +42,16 @@ class AbstractDataModule(pl.LightningDataModule):
         batch_size = self.cfg.dataset.batch_size
         print(f'batch size is {batch_size}')
         num_workers = self.cfg.train.num_workers
-        self.dataloaders = {split: DataLoader(dataset, batch_size=batch_size, 
-                                              num_workers=num_workers,
-                                              shuffle='debug' not in self.cfg.general.name)
-                            for split, dataset in datasets.items()}
+        self.dataloaders = {}
+        for split, dataset in datasets.items():
+            if split == 'train':
+                shuffle = 'debug' not in self.cfg.general.name
+            else:
+                shuffle = False
+            self.dataloaders[split] = DataLoader(dataset, 
+                                                 batch_size=batch_size, 
+                                                 num_workers=num_workers, 
+                                                 shuffle=shuffle)
 
 
     def train_dataloader(self):
