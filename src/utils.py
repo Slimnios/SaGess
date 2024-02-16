@@ -29,8 +29,16 @@ def rw_task(args):
     G = G.to_undirected()
     samples = []
     for _ in range(loop):
-        final_sample = random_walk(G, n, subgraph_size)
-        samples.append(final_sample)
+        prev_node = n
+        rw = [prev_node]
+        n_steps = 0
+        while n_steps < subgraph_size-1:
+            node = random.choice(list(G.neighbors(prev_node)))
+            rw.append(node)
+            n_steps += 1
+            prev_node = node
+        samples.append(rw)
+
     return samples, [subgraph_size] * loop
 
 def uniform_task(args):
