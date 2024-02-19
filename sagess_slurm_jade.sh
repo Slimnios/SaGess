@@ -4,12 +4,17 @@
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --time=3-00:00:00
+#SBATCH --cpus-per-task=24
 
 export CUDA_VISIBLE_DEVICES=$SLURM_JOB_GPUS
 
 echo "IDs of GPUs available: $CUDA_VISIBLE_DEVICES"
  
 echo "No of GPUs available: $(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)"
+
+echo "No of CPUs available: $SLURM_CPUS_PER_TASK" 
+
+echo "nproc output: $(nproc)"
 
 nvidia-smi
 
@@ -27,10 +32,10 @@ fi
 repo="sagess"
 
 dataset="EmailEUCore"
-# dataset="Cora"
-# dataset="Wiki"
-# dataset="Ego_Facebook"
-# dataset="SBM"
+#dataset="Cora"
+#dataset="Wiki"
+#dataset="Ego_Facebook"
+#dataset="SBM"
 
 # print out config file
 cat configs/dataset/${dataset}.yaml
@@ -52,6 +57,7 @@ run_command="singularity exec
   --bind $scratch_root:/scratch_mount
   --pwd /scratch_mount
   --env CUDA_VISIBLE_DEVICES=0
+  --cpus $SLURM_CPUS_PER_TASK
   --env DATASET=${dataset}
   $container
   $container_command"
