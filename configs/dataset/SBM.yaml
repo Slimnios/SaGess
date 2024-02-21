@@ -2,3 +2,5 @@ name: 'sbm'
 edge_count: 73312
 batch_size: 32
 # graphs_gen_count: 10 # comment out to generate 1 by default 
+sampling_threads: 8
+sampling_method: 'ego' # ego, random_walk, uniform, mix

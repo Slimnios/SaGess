@@ -4,6 +4,30 @@ import torch
 import pytorch_lightning as pl
 from torch_geometric.loader import DataLoader
 
+def custom_collate(batch):
+    # `batch` is a list of tuples returned by your Dataset's __getitem__ method
+    # Let's assume each tuple in the batch has the structure (data, target), where
+    # `data` could be a sparse tensor.
+    
+    # Process each item in the batch
+    processed_data = []
+    targets = []
+    for data, target in batch:
+        # Check if the data is a sparse tensor
+        if torch.is_tensor(data) and data.is_sparse:
+            # Convert sparse tensor to dense, if necessary, or handle as needed
+            data = data.to_dense()  # Note: Convert to dense only if it's suitable for your application
+        processed_data.append(data)
+        targets.append(target)
+    
+    # Stack all data tensors and targets together
+    # Note: This simplistic approach assumes that after processing, your data tensors are of a form
+    # that can be directly concatenated. If this is not the case (e.g., due to sparse to dense conversion),
+    # additional handling will be needed based on your specific data structure.
+    data_batch = torch.stack(processed_data)
+    target_batch = torch.stack(targets)
+    
+    return data_batch, target_batch
 
 class AbstractDataModule(pl.LightningDataModule):
     def __init__(self, cfg):
@@ -18,10 +42,16 @@ class AbstractDataModule(pl.LightningDataModule):
         batch_size = self.cfg.dataset.batch_size
         print(f'batch size is {batch_size}')
         num_workers = self.cfg.train.num_workers
-        self.dataloaders = {split: DataLoader(dataset, batch_size=batch_size, 
-                                              num_workers=num_workers,
-                                              shuffle='debug' not in self.cfg.general.name)
-                            for split, dataset in datasets.items()}
+        self.dataloaders = {}
+        for split, dataset in datasets.items():
+            if split == 'train':
+                shuffle = 'debug' not in self.cfg.general.name
+            else:
+                shuffle = False
+            self.dataloaders[split] = DataLoader(dataset, 
+                                                 batch_size=batch_size, 
+                                                 num_workers=num_workers, 
+                                                 shuffle=shuffle)
 
 
     def train_dataloader(self):
