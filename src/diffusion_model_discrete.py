@@ -72,7 +72,7 @@ class DiscreteDenoisingDiffusion(pl.LightningModule):
                                       output_dims=output_dims,
                                       act_fn_in=nn.ReLU(),
                                       act_fn_out=nn.ReLU())
-        # self.model = torch.compile(self.model)
+        self.model = torch.compile(self.model)
 
         self.noise_schedule = PredefinedNoiseScheduleDiscrete(cfg.model.diffusion_noise_schedule,
                                                               timesteps=cfg.model.diffusion_steps, 

@@ -20,6 +20,9 @@ import hydra
 import omegaconf
 from omegaconf import DictConfig
 
+import torch._dynamo
+torch._dynamo.config.suppress_errors = True
+
 torch.manual_seed(120)
 def get_resume(cfg, model_kwargs):
     """ Resumes a run. It loads previous config without allowing to update keys (used for testing). """
