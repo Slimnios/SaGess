@@ -57,7 +57,6 @@ run_command="singularity exec
   --bind $scratch_root:/scratch_mount
   --pwd /scratch_mount
   --env CUDA_VISIBLE_DEVICES=0
-  --cpus $SLURM_CPUS_PER_TASK
   --env DATASET=${dataset}
   $container
   $container_command"
