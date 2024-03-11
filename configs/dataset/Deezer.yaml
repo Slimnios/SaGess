@@ -3,4 +3,11 @@ edge_count: 10
 batch_size: 1
 # graphs_gen_count: 10 # comment out to generate 1 by default 
 sampling_threads: 8
-sampling_method: 'ego' # ego, random_walk, uniform, mix
+sampling_method: 'random_walk' # ego, random_walk, uniform, mix
+
+# SaGess params 
+per_node_samples_rw:       40   # no of subgraphs sampled per node for random walk sampling
+per_node_samples_unif:  10000   # no of subgraphs sampled per node for uniform sampling
+per_node_samples_ego:      10   # no of subgraphs sampled per node for ego sampling
+subgraph_size:             20   # size of subgraph sampled for each node 
+ego_sample_radius:         2 

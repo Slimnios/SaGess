@@ -17,13 +17,19 @@ import torch_geometric.transforms as T
 import pickle
 from tqdm import tqdm
 import multiprocessing as mp 
-from utils import random_walk, rw_task, ego_task, uniform_task
+from utils import random_walk, rw_task, ego_task
 
 class LargeGraphDataset(Dataset):
-    def __init__(self, cfg, data_name="custom",sampling_method='mix'):
+    def __init__(self, cfg, dataset_type="custom"):
         self.cfg = cfg 
         self.data_file = self.cfg.dataset.name
-        if data_name == "custom":
+        self.per_node_samples_rw = self.cfg.dataset.per_node_samples_rw
+        self.per_node_samples_unif = self.cfg.dataset.per_node_samples_unif
+        self.per_node_samples_ego = self.cfg.dataset.per_node_samples_ego
+        self.subgraph_size = self.cfg.dataset.subgraph_size
+        self.ego_sample_radius = self.cfg.dataset.ego_sample_radius
+
+        if dataset_type == "custom":
             base_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, 'data')
             directed_graph = False
 
@@ -90,7 +96,6 @@ class LargeGraphDataset(Dataset):
             y = torch.zeros([1, 0]).float()
             n_nodes = len(list(self.nx_graph.nodes()))
             print('nodes in graph : ', n_nodes)
-            subgraph_size = 20
 
             self.samples_sizes = []
             self.dataset_node_lists = []
@@ -100,32 +105,39 @@ class LargeGraphDataset(Dataset):
             if self.cfg.dataset.sampling_method == 'mix':
                 print('Sampling type: mix')
 
-                self.random_walk_sample(30, subgraph_size)
-                self.uniform_sample(7000, subgraph_size)
-                # self.ego_sample(7, subgraph_size)
-                self.ego_sample_threaded(7, subgraph_size, 
+                self.random_walk_sample(per_node_samples=30, 
+                                        subgraph_size=self.subgraph_size)
+                self.uniform_sample(per_node_samples=7000, 
+                                    subgraph_size=self.subgraph_size)
+                # self.ego_sample(per_node_samples=7, 
+                                #   subgraph_size=self.subgraph_size)
+                self.ego_sample_threaded(per_node_samples=7, 
+                                         subgraph_size=self.subgraph_size, 
+                                         radius=self.ego_sample_radius,
                                          max_workers=self.cfg.dataset.sampling_threads)
 
             elif self.cfg.dataset.sampling_method == 'random_walk':
                 print('Sampling type: random walk')
 
-                self.random_walk_sample(40, subgraph_size)
+                self.random_walk_sample(self.per_node_samples_rw, self.subgraph_size)
                 
-                # self.random_walk_sample_threaded(40, subgraph_size, 
+                # self.random_walk_sample_threaded(self.per_node_samples_rw, self.subgraph_size, 
                 #                                  max_workers=self.cfg.dataset.sampling_threads)
 
             elif self.cfg.dataset.sampling_method == 'ego':
                 print('Sampling type: ego')
 
-                # self.ego_sample(10, subgraph_size)
+                # self.ego_sample(self.per_node_samples_ego, self.subgraph_size, 
+                                                            # radius=self.ego_sample_radius)
 
-                self.ego_sample_threaded(10, subgraph_size, 
+                self.ego_sample_threaded(self.per_node_samples_ego, self.subgraph_size, 
+                                         radius=self.ego_sample_radius, 
                                          max_workers=self.cfg.dataset.sampling_threads)
 
             elif self.cfg.dataset.sampling_method == 'uniform':
                 print('Sampling type: uniform')
 
-                self.uniform_sample(10000, subgraph_size)
+                self.uniform_sample(self.per_node_samples_unif, self.subgraph_size)
             
             sampling_end_time = time.time()
             n_samples = len(self.dataset_node_lists)
@@ -152,35 +164,35 @@ class LargeGraphDataset(Dataset):
             Train_data = [Data(x=F.one_hot(torch.flatten(dataset_samples_wnmaps[i][0]),num_classes = n_nodes).float().to_sparse(), 
                                edge_index=dataset_samples_wnmaps[i][1],
                                edge_attr = torch.tensor([[0 for k in range(dataset_samples_wnmaps[i][1].size()[1])],[1 for n in range(dataset_samples_wnmaps[i][1].size()[1])]], dtype = torch.long).transpose(0,1), #np.ones(dataset_samples_wnmaps[i][1].size()[1])),
-                               n_nodes=subgraph_size*torch.ones(1, dtype=torch.long), y = y)  for i in range(n_samples)]
+                               n_nodes=self.subgraph_size*torch.ones(1, dtype=torch.long), y = y)  for i in range(n_samples)]
 
             self.data = Train_data
 
 
-    def uniform_sample(self, n_samples=5000, subgraph_size=20):
+    def uniform_sample(self, per_node_samples=5000, subgraph_size=20):
         n_nodes = len(list(self.nx_graph.nodes()))
-        self.samples_sizes += [subgraph_size for i in range(n_samples)]
-        self.dataset_node_lists+=[list(random.choices(range(n_nodes), k=subgraph_size)) for i in tqdm(range(n_samples), desc="Uniform Sampling")]
+        self.samples_sizes += [subgraph_size for i in range(per_node_samples)]
+        self.dataset_node_lists+=[list(random.choices(range(n_nodes), k=subgraph_size)) for i in tqdm(range(per_node_samples), desc="Uniform Sampling")]
 
 
-    def random_walk_sample(self, loop=30, subgraph_size=20):
+    def random_walk_sample(self, per_node_samples=30, subgraph_size=20):
         G_copy = copy.copy(self.nx_graph)
         G_copy = G_copy.to_undirected()
         self.dataset_node_lists = []
         
         for n in tqdm(self.nx_graph.nodes(), desc="Random Walk Sampling"):
-            for _ in range(loop):
+            for _ in range(per_node_samples):
                 final_sample = random_walk(G_copy, n, subgraph_size)
                 self.samples_sizes.append(subgraph_size)
                 self.dataset_node_lists.append(final_sample)
 
 
-    def ego_sample(self, loop=10, subgraph_size=20, radius=2):
+    def ego_sample(self, per_node_samples=10, subgraph_size=20, radius=2):
         for n in tqdm(self.nx_graph.nodes(), desc="Ego Sampling"):
             ego_net = nx.ego_graph(self.nx_graph.to_undirected(), n, radius=radius)
 
             temp_initial_size = len(list(ego_net.nodes()))
-            for _ in range(loop):
+            for _ in range(per_node_samples):
                 temp_ego = copy.deepcopy(ego_net)
                 temp_size = temp_initial_size
                 final_sample = list(temp_ego.nodes())
@@ -197,11 +209,11 @@ class LargeGraphDataset(Dataset):
 
                 self.dataset_node_lists.append(final_sample)
 
-
-    def random_walk_sample_threaded(self, loop=30, subgraph_size=20, max_workers=2):
+    # Note: slower than regular rw 
+    def random_walk_sample_threaded(self, per_node_samples=30, subgraph_size=20, max_workers=2):
         G = copy.copy(self.nx_graph)
 
-        args_list = [(n, G, loop, subgraph_size) for n in self.nx_graph.nodes()]
+        args_list = [(n, G, per_node_samples, subgraph_size) for n in self.nx_graph.nodes()]
 
         with mp.Pool(processes=max_workers) as pool:
             results = list(tqdm(pool.imap(rw_task, args_list), total=len(args_list), desc="Threaded Random Walk Sampling"))
@@ -215,10 +227,10 @@ class LargeGraphDataset(Dataset):
         self.samples_sizes.extend(all_sizes)
 
 
-    def ego_sample_threaded(self, loop=10, subgraph_size=20, radius=2, max_workers=2):
+    def ego_sample_threaded(self, per_node_samples=10, subgraph_size=20, radius=2, max_workers=2):
         G = copy.copy(self.nx_graph)
 
-        args_list = [(n, G, radius, loop, subgraph_size) for n in self.nx_graph.nodes()]
+        args_list = [(n, G, radius, per_node_samples, subgraph_size) for n in self.nx_graph.nodes()]
 
         with mp.Pool(processes=max_workers) as pool:
             results = list(tqdm(pool.imap(ego_task, args_list), total=len(args_list), desc="Threaded Ego Sampling"))

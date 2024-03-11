@@ -24,7 +24,7 @@ def load_from_pickle(filename):
 ################################################################
 
 
-method = 'full_run_sagess_mul_workers'
+method = 'full_run_sagess_torch_compile'
 
 # dataset_name = 'EmailEUCore'
 # dataset_name = 'Cora'
