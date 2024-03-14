@@ -27,11 +27,11 @@ Make sure to set the 'entity' parameter in the `setup_wandb()` function located 
 ```
  'entity': 'wandb_username'
 ```
-
+For online syncing, change the 'wandb' parameter in `configs/general/general_default.yaml` to 'online'. 
 
 ## Running the code
     
-All code is currently launched with the following: 
+The main script can be launched as such: 
 ```
  python src\run_sagess.py dataset=Cora
 ```
@@ -43,11 +43,9 @@ Saved checkpoints, wandb log folder and other outputs can be found in the `outpu
 
 ## Configs & parameters
 
-Dataset specific configuration resides in `configs/dataset/*.yaml` files. 
+Dataset specific configuration resides in `configs/dataset/*.yaml` files, including the number of subgraphs to train on, their size and sampling method.  
 
 Other default parameters for DiGress are found in `configs/train/train_default.yaml`, `configs\model\discrete.yaml` and `configs\general\general_default.yaml`. 
-
-The following parameters: dataset, number of subgraphs to train on, their size and sampling method are to be set manually in `src/dataset/large_graph_datasets.py`.
 
 
 ## Additional support for docker
